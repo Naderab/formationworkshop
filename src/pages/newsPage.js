@@ -1,8 +1,10 @@
-import { Col, Row, Space, Input } from "antd";
+import { Col, Row, Space, Input,Button } from "antd";
 import { useCallback, useState, useEffect } from "react";
 import NewsList from "../components/newsList";
 import * as api from "../services/news.service";
 import { Select } from 'antd';
+import { PlusCircleOutlined, SearchOutlined } from '@ant-design/icons';
+
 const { Option } = Select;
 
 const { Search } = Input;
@@ -10,13 +12,14 @@ const { Search } = Input;
 function NewsPage() {
   const [news, setNews] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [visibleAdd, setVisibleAdd] = useState(false);
 
-  const [searchValue, setSearchValue] = useState("");
+  const [searchValue, setSearchValue] = useState({input:'',category:''});
 
   const [loading, setLoading] = useState(false);
   const [isError, setIsError] = useState(false);
   const onChange = (value) => {
-    console.log(`selected ${value}`);
+    setSearchValue({...searchValue,category:value});
   };
   useEffect(() => {
     async function fetchData() {
@@ -50,6 +53,18 @@ function NewsPage() {
     fetchData();
   }, []);
 
+  const search = async () => {
+    console.log(searchValue);
+    const searchedNews = news;
+    if(searchValue.input.length<0){
+    setNews(news.filter(e=>e.category===searchValue.category));
+    } else if(searchValue.category.length>0) {
+        setNews(news.filter(e=>e.category===searchValue.category && e.title.toLowerCase().includes(searchValue.input.toLowerCase())));
+    }else {
+        const data = await api.fetchNews();
+        setNews(data);
+    }
+  }
   // useEffect(() => {
   //   async function search(){
   //     try {
@@ -70,34 +85,34 @@ function NewsPage() {
   //   search();
   // }, [searchValue]);
 
-  // useEffect(() => {
-  //   let didCancel = false;
-  //   async function search(){
-  //     try {
-  //     setLoading(true);
-  //     if (searchValue.length === 0){
-  //       setTasks([]);
-  //       setLoading(false);
-  //     }else {
-  //       const newData =  await api.fetchTasksByFilter(searchValue);
-  //       console.log(didCancel);
-  //       if (!didCancel){
-  //         console.log('did not cancel');
-  //         setTasks(newData);
-  //         setLoading(false);
-  //       }
-  //       //setLoading(false);
-  //       //setTasks(newData);
-  //     }
+//   useEffect(() => {
+//     let didCancel = false;
+//     async function search(){
+//       try {
+//       setLoading(true);
+//       if (searchValue.length === 0){
+//         setTasks([]);
+//         setLoading(false);
+//       }else {
+//         const newData =  await api.fetchTasksByFilter(searchValue);
+//         console.log(didCancel);
+//         if (!didCancel){
+//           console.log('did not cancel');
+//           setTasks(newData);
+//           setLoading(false);
+//         }
+//         setLoading(false);
+//         setTasks(newData);
+//       }
 
-  //     } catch (error) {
-  //       console.log(error)
-  //     }
-  //   }
-  //   search();
-  //   return(()=>{console.log(`cleanup ${searchValue}`) ;
-  //   didCancel = true;});
-  // }, [searchValue]);
+//       } catch (error) {
+//         console.log(error)
+//       }
+//     }
+//     search();
+//     return(()=>{console.log(`cleanup ${searchValue}`) ;
+//     didCancel = true;});
+//   }, [searchValue]);
 
   //   const addNews = async (title) => {
   //         try {
@@ -109,28 +124,29 @@ function NewsPage() {
   //           console.log('error')
   //         }
   //       };
-  //       const deleteNews = async (id) => {
-  //         try {
-  //           setLoading(true);
-  //           await api.deleteTask(id);
-  //           setTasks(tasks.filter((task) => task._id !== id));
-  //           setLoading(false);
-  //         } catch (error) {
-  //           console.log('error')
-  //         }
-  //       }
-  //       const updateNews = async (task) => {
-  //         try {
-  //           setLoading(true);
-  //           const updatedTask = await api.updateTask(task._id, task);
-  //           console.log(updatedTask)
-  //           setTasks(tasks.map((task) => (task._id === updatedTask._id ? updatedTask : task)));
-  //           setLoading(false);
-  //         } catch (error) {
-  //           console.log('error')
-  //         }
-  //       }
-  const onSearch = (value) => console.log(value);
+        const deleteNews = async (id) => {
+          try {
+            setLoading(true);
+            await api.deleteNews(id);
+            setNews(news.filter((news) => news.id !== id));
+            setLoading(false);
+          } catch (error) {
+            console.log('error')
+          }
+        }
+        const updateNews = async (newnews) => {
+          try {
+            setLoading(true);
+            console.log(news)
+            const updatedNews = await api.updateNews(newnews.id, newnews);
+            console.log(updatedNews)
+
+            setNews(news.map((news) => (news.id === updatedNews.id ? updatedNews : news)));
+            setLoading(false);
+          } catch (error) {
+            console.log(error)
+          }
+        }
 
   return (
     <div className="site-card-wrapper">
@@ -140,8 +156,8 @@ function NewsPage() {
             <Search
               placeholder="input search text"
               name="searchValue"
-              value={searchValue}
-              onChange={(e) => setSearchValue(e.target.value)}
+              value={searchValue.input}
+              onChange={(e) => setSearchValue({...searchValue,input:e.target.value})}
               enterButton
             />
              <Select
@@ -161,7 +177,8 @@ function NewsPage() {
           </Space>
          
         </Col>
-        <Col></Col>
+        <Col>      <Button type="primary" shape="circle" icon={<SearchOutlined />} onClick={search}/>
+</Col>
       </Row>
 
       {isError && <p>No data</p>}
@@ -170,8 +187,23 @@ function NewsPage() {
       ) : (
         <>
           <Row style={{ marginTop: "20px" }}>
-            <NewsList news={news} />
+          <Col span={24} style={{ marginBottom: "20px" }}>
+      <Button type="primary" shape="round" icon={<PlusCircleOutlined />}  size="small" onClick={()=>setVisibleAdd(!visibleAdd)}>
+        {visibleAdd ? 'Hide Add' : ' Show Add'}
+      </Button>
+        </Col> 
+
+                     <NewsList news={news} updateNews={updateNews} deleteNews={deleteNews} />
+
+
           </Row>
+          {isUpdate && (
+      <>
+       <Input placeholder="input placeholder" name="newTitle" value={updatedNews.title} onChange={(e)=>setUpdatedNews({...updatedNews,title:e.target.value})}/>
+        <Input placeholder="input placeholder" name='newCategory' value={updatedNews.category} onChange={(e)=>setUpdatedNews({...updatedNews,category:e.target.value})}/>
+        <Button type="primary" onClick={onFormLayoutChange}>Submit</Button>
+        </>
+      )}
         </>
       )}
     </div>
